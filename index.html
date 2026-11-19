@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HDM 1 Judging Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: summary tiles → filter bar → ranked table; a row opens a side drawer with the evidence. */
+:root {
+  --bg: #f4f5f7; --surface: #ffffff; --ink: #1b1f27; --muted: #5d6573; --line: #dde1e7;
+  --accent: #2f5bd3; --accent-soft: #e6ecfb;
+  --ok: #1f8a4c; --ok-soft: #e3f4ea; --key: #2b6cb0; --key-soft: #e4eefa;
+  --bad: #c0392b; --bad-soft: #fbe7e4; --warn: #b7791f; --warn-soft: #fbf1df; --none: #6b7280; --none-soft: #eef0f3;
+  --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12151b; --surface: #1a1e26; --ink: #e7eaf0; --muted: #9aa3b2; --line: #2b313c;
+    --accent: #7c9cf5; --accent-soft: #232d48;
+    --ok: #4cc283; --ok-soft: #173326; --key: #6aa7ee; --key-soft: #182a40;
+    --bad: #f07466; --bad-soft: #3a1d1a; --warn: #e3b35a; --warn-soft: #382c16; --none: #9aa3b2; --none-soft: #252a33;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12151b; --surface: #1a1e26; --ink: #e7eaf0; --muted: #9aa3b2; --line: #2b313c;
+  --accent: #7c9cf5; --accent-soft: #232d48;
+  --ok: #4cc283; --ok-soft: #173326; --key: #6aa7ee; --key-soft: #182a40;
+  --bad: #f07466; --bad-soft: #3a1d1a; --warn: #e3b35a; --warn-soft: #382c16; --none: #9aa3b2; --none-soft: #252a33;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.45; }
+a { color: var(--accent); }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1280px; margin: 0 auto; padding: 24px 20px 60px; display: grid; gap: 16px; }
+header { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline; justify-content: space-between; }
+h1 { font-size: 22px; font-weight: 600; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); font-size: 13px; }
+.sub button { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 6px; padding: 10px 12px; text-align: left; cursor: pointer; }
+.tile b { display: block; font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tile span { color: var(--muted); font-size: 12px; }
+.tile.ok { border-left-color: var(--ok); } .tile.key { border-left-color: var(--key); }
+.tile.bad { border-left-color: var(--bad); } .tile.none { border-left-color: var(--none); } .tile.acc { border-left-color: var(--accent); }
+.tile[aria-pressed="true"] { background: var(--accent-soft); }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.bar input[type=search] { flex: 1 1 220px; min-width: 0; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.chip { padding: 6px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); cursor: pointer; font-size: 13px; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.count { margin-left: auto; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; min-width: 900px; }
+th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }
+th { font-size: 12px; font-weight: 600; color: var(--muted); background: var(--surface); position: sticky; top: 0; white-space: nowrap; }
+th.sortable { cursor: pointer; user-select: none; }
+th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--accent-soft); }
+tbody tr.sel { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.who b { font-weight: 500; } .who small { display: block; color: var(--muted); font-size: 12px; }
+.who em { display: block; font-style: normal; font-size: 12px; color: var(--ink); opacity: .8; max-width: 300px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.s-ok { color: var(--ok); background: var(--ok-soft); } .s-key { color: var(--key); background: var(--key-soft); }
+.s-bad { color: var(--bad); background: var(--bad-soft); } .s-none { color: var(--none); background: var(--none-soft); }
+.what { color: var(--muted); font-size: 13px; max-width: 360px; }
+.score { font-family: var(--mono); font-weight: 500; font-size: 15px; }
+.mini { display: flex; gap: 2px; margin-top: 4px; justify-content: flex-end; }
+.mini i { display: block; width: 8px; height: 14px; background: var(--line); border-radius: 1px; position: relative; overflow: hidden; }
+.mini i::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: var(--h); background: var(--accent); }
+.you input { width: 58px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); text-align: right; font-family: var(--mono); }
+.you input.set { border-color: var(--accent); background: var(--accent-soft); }
+.flag { color: var(--warn); font-size: 12px; }
+.pending { color: var(--muted); font-size: 12px; }
+/* drawer */
+.drawer { position: fixed; inset: 0 0 0 auto; width: min(640px, 100%); background: var(--surface); border-left: 1px solid var(--line); box-shadow: -8px 0 24px rgb(0 0 0 / .12); transform: translateX(105%); transition: transform .18s ease; overflow-y: auto; z-index: 10; }
+.drawer.open { transform: none; }
+@media (prefers-reduced-motion: reduce) { .drawer { transition: none; } }
+.dh { position: sticky; top: 0; background: var(--surface); border-bottom: 1px solid var(--line); padding: 14px 18px; display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; z-index: 1; }
+.dh h2 { margin: 0; font-size: 17px; font-weight: 600; text-wrap: balance; }
+.dh small { color: var(--muted); }
+.x { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.db { padding: 16px 18px 40px; display: grid; gap: 18px; }
+.db h3 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+.kv { display: grid; grid-template-columns: 110px 1fr; gap: 4px 12px; font-size: 13px; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; overflow-wrap: anywhere; }
+.crit { border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; display: grid; gap: 6px; }
+.crit header { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.crit header b { font-weight: 600; }
+.crit .pts { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.meter { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.meter span { display: block; height: 100%; background: var(--accent); }
+.crit p { margin: 0; font-size: 13px; }
+.ev { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 12.5px; }
+.ev li { display: grid; grid-template-columns: 64px 1fr; gap: 8px; }
+.tag { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 3px; text-align: center; height: fit-content; }
+.tag.verified { color: var(--ok); background: var(--ok-soft); } .tag.claimed { color: var(--warn); background: var(--warn-soft); }
+.ev code, .cmd code { font-family: var(--mono); font-size: 12px; }
+.ev .where { color: var(--muted); display: block; overflow-wrap: anywhere; }
+ul.plain { margin: 0; padding-left: 18px; font-size: 13px; display: grid; gap: 3px; }
+.cmd { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.cmd summary { padding: 7px 10px; cursor: pointer; display: flex; gap: 8px; align-items: baseline; font-size: 13px; }
+.cmd summary code { flex: 1; overflow-wrap: anywhere; }
+.rc { font-family: var(--mono); font-size: 12px; padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
+.rc.ok { color: var(--ok); background: var(--ok-soft); } .rc.bad { color: var(--bad); background: var(--bad-soft); } .rc.none { color: var(--none); background: var(--none-soft); }
+.cmd pre { margin: 0; padding: 10px; background: var(--bg); font-family: var(--mono); font-size: 11.5px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 320px; overflow-y: auto; border-top: 1px solid var(--line); }
+.override { display: grid; gap: 8px; border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 12px; }
+.override .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.override input[type=number] { width: 80px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); font-family: var(--mono); }
+.override textarea { width: 100%; min-height: 64px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); font: inherit; resize: vertical; }
+.btn { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--accent); }
+.note { font-size: 12px; color: var(--muted); }
+.gate { max-width: 420px; margin: 12vh auto 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 24px; display: grid; gap: 12px; }
+.gate h1 { font-size: 20px; }
+.gate input { padding: 9px 11px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 15px; }
+.gate .err { color: var(--bad); font-size: 13px; min-height: 18px; }
+.top10 { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--ok); border-radius: 8px; padding: 12px 14px; display: grid; gap: 8px; }
+.top10 header { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; justify-content: space-between; }
+.top10 h2 { margin: 0; font-size: 15px; font-weight: 600; }
+.top10 ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.top10 li { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 5px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.top10 li:first-child { border-top: 0; }
+.top10 .t { color: var(--muted); display: block; font-size: 12px; overflow-wrap: anywhere; }
+.top10 .score { text-align: right; }
+.dl { padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); cursor: pointer; font-size: 12.5px; white-space: nowrap; }
+.dl:hover { border-color: var(--accent); color: var(--accent); }
+.dl[disabled] { opacity: .6; cursor: progress; }
+.hidden { display: none !important; }
+/* static hosting: no shared score store, so the panel-score inputs are hidden */
+th:last-child, td.you, .override, #dbnote { display: none; }
+.toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--surface); padding: 8px 14px; border-radius: 6px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 20; }
+.toast.on { opacity: 1; }
+@media (max-width: 600px) { .wrap { padding: 16px 16px 40px; } .kv { grid-template-columns: 90px 1fr; } }
+</style>
+</head>
+<body>
+<form class="gate hidden" id="gate" autocomplete="off">
+  <h1>HDM 1 judging board</h1>
+  <p class="note" style="margin:0">This board is protected. Enter the access password you were given.</p>
+  <label for="pw" class="note">Password</label>
+  <input type="password" id="pw" autocomplete="current-password" required>
+  <button class="btn" type="submit" id="unlock">Open board</button>
+  <div class="err" id="gateerr" role="alert"></div>
+</form>
+<div class="wrap" id="app">
+  <header>
+    <div>
+      <h1>Evaluation Hackathon · HDM 1 judging board</h1>
+      <div class="sub" id="sub">Loading results…</div>
+    </div>
+    <div class="sub">Every submission ran in its own offline Docker container. Scores follow the official 100-point rubric; evidence is tagged <b>verified</b> or <b>claimed</b>.</div>
+  </header>
+
+  <section class="tiles" id="tiles" aria-label="Summary"></section>
+  <section class="top10 hidden" id="top10" aria-label="Top 10 that ran clean"></section>
+
+  <div class="bar" role="toolbar" aria-label="Filters">
+    <input type="search" id="q" placeholder="Name, email, eval title or domain" aria-label="Search submissions">
+    <div id="chips" class="bar"></div>
+    <span class="count" id="count"></span>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="num" scope="col">#</th>
+          <th scope="col" class="sortable" data-sort="name">Expert</th>
+          <th scope="col">Status</th>
+          <th scope="col">What happened</th>
+          <th class="num sortable" scope="col" data-sort="secs">Run time</th>
+          <th class="num sortable" scope="col" data-sort="ai">AI /100</th>
+          <th class="num" scope="col">You</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <p class="note" id="dbnote">Your scores and notes are saved with this page, encrypted with the board password, for everyone it is shared with.</p>
+</div>
+
+<aside class="drawer" id="drawer" aria-label="Submission detail" aria-hidden="true"></aside>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const CRIT = [
+  ["relevance", "Real-world relevance", 15], ["task_design", "Task design", 20], ["grader", "Grader reliability", 20],
+  ["limitations", "Evidence of model limitations", 15], ["reproducibility", "Reproducibility", 15],
+  ["human_expertise", "Human expertise and review", 10], ["insight", "Insight / hot take", 5]];
+const STATUS = { "Ran clean": "ok", "Needs key": "key", "Problem": "bad", "Not run": "none" };
+let DATA = { rows: [] }, overrides = {}, db = null, canWrite = true;
+const st = { q: "", status: "All", scored: "All", sort: "ai", dir: -1, sel: null };
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtSecs = (s) => s == null ? "" : s >= 60 ? `${Math.floor(s / 60)}m ${String(Math.round(s % 60)).padStart(2, "0")}s` : `${Math.round(s)}s`;
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("on"), 2200); }
+
+const ai = (r) => r.score ? r.score.total : null;
+const you = (r) => { const o = overrides[r.slug]; return o && typeof o.score === "number" ? o.score : null; };
+
+function ranked() {
+  // rank by AI score (your score wins where set), unscored last
+  const rows = DATA.rows.slice();
+  rows.sort((a, b) => ((you(b) ?? ai(b) ?? -1) - (you(a) ?? ai(a) ?? -1)) || a.name.localeCompare(b.name));
+  rows.forEach((r, i) => r._rank = (ai(r) != null || you(r) != null) ? i + 1 : null);
+  return rows;
+}
+
+function filtered() {
+  const q = st.q.trim().toLowerCase();
+  let rows = ranked().filter((r) => {
+    const s = r.run?.status || "Not run";
+    if (st.status !== "All" && s !== st.status) return false;
+    if (st.scored === "Scored" && !r.score) return false;
+    if (st.scored === "Not scored" && r.score) return false;
+    if (q) {
+      const hay = [r.name, r.email, r.slug, r.score?.title, r.score?.domain, r.file].join(" ").toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  const key = { ai: (r) => you(r) ?? ai(r) ?? -1, secs: (r) => r.run?.secs ?? -1, name: (r) => r.name.toLowerCase() }[st.sort];
+  rows.sort((a, b) => { const x = key(a), y = key(b); return (x < y ? -1 : x > y ? 1 : 0) * st.dir; });
+  return rows;
+}
+
+function renderTiles() {
+  const rows = DATA.rows, c = (s) => rows.filter((r) => (r.run?.status || "Not run") === s).length;
+  const scored = rows.filter((r) => r.score), top = Math.max(0, ...scored.map((r) => r.score.total));
+  const yours = rows.filter((r) => you(r) != null).length;
+  const tiles = [
+    ["All", rows.length, "Submissions", "acc"], ["Ran clean", c("Ran clean"), "Ran clean", "ok"],
+    ["Needs key", c("Needs key"), "Needs a key or internet", "key"], ["Problem", c("Problem"), "Problem", "bad"],
+    ["Not run", c("Not run"), "No runnable command", "none"], ["Scored", scored.length, "AI scored", "acc"],
+    [null, top, "Top AI score", "acc"], [null, yours, "Scored by you", "acc"]];
+  $("#tiles").innerHTML = tiles.map(([f, n, l, cls]) =>
+    `<button class="tile ${cls}" ${f ? `data-f="${f}" aria-pressed="${(f === "Scored" ? st.scored === "Scored" : st.status === f && st.scored === "All")}"` : "disabled"}><b>${n}</b><span>${l}</span></button>`).join("");
+  $("#tiles").querySelectorAll("[data-f]").forEach((b) => b.onclick = () => {
+    const f = b.dataset.f;
+    if (f === "Scored") { st.scored = "Scored"; st.status = "All"; } else { st.status = f; st.scored = "All"; }
+    render();
+  });
+}
+
+function renderChips() {
+  const opts = ["All", "Ran clean", "Needs key", "Problem", "Not run"];
+  $("#chips").innerHTML = opts.map((o) => `<button class="chip" data-s="${o}" aria-pressed="${st.status === o}">${o}</button>`).join("") +
+    ["Scored", "Not scored"].map((o) => `<button class="chip" data-sc="${o}" aria-pressed="${st.scored === o}">${o}</button>`).join("");
+  $("#chips").querySelectorAll("[data-s]").forEach((b) => b.onclick = () => { st.status = b.dataset.s; render(); });
+  $("#chips").querySelectorAll("[data-sc]").forEach((b) => b.onclick = () => { st.scored = st.scored === b.dataset.sc ? "All" : b.dataset.sc; render(); });
+}
+
+function mini(s) {
+  return `<div class="mini" aria-hidden="true">${CRIT.map(([k, , max]) => `<i style="--h:${Math.round(100 * (s.scores[k]?.score || 0) / max)}%" title="${k}"></i>`).join("")}</div>`;
+}
+
+function renderRows() {
+  const rows = filtered();
+  $("#count").textContent = `${rows.length} of ${DATA.rows.length}`;
+  $("#rows").innerHTML = rows.map((r) => {
+    const s = r.run?.status || "Not run", y = you(r);
+    const flags = r.score?.flags?.length ? `<span class="flag">⚑ ${r.score.flags.length} flag${r.score.flags.length > 1 ? "s" : ""}</span>` : "";
+    return `<tr data-slug="${r.slug}" class="${st.sel === r.slug ? "sel" : ""}">
+      <td class="num">${r._rank ?? ""}</td>
+      <td class="who"><b>${esc(r.name)}</b><small>${esc(r.slug)}${r.late ? " · late email" : ""}</small>${r.score ? `<em>${esc(r.score.title)}</em>` : ""}</td>
+      <td><span class="pill s-${STATUS[s]}">${s}</span></td>
+      <td class="what">${esc(r.run?.what || "Waiting for the sandbox run.")} ${flags}</td>
+      <td class="num">${fmtSecs(r.run?.secs)}</td>
+      <td class="num">${r.score ? `<span class="score">${r.score.total}</span>${mini(r.score)}` : r.triage ? `<span class="pending" title="Free rule-based triage, no AI">triage #${r.triage.rank}</span>` : `<span class="pending">pending</span>`}</td>
+      <td class="num you"><input type="number" min="0" max="100" step="1" inputmode="numeric" id="you-${r.slug}" aria-label="Your score for ${esc(r.name)}" value="${y ?? ""}" class="${y != null ? "set" : ""}" ${canWrite && db ? "" : "disabled"}></td>
+    </tr>`;
+  }).join("");
+  $("#rows").querySelectorAll("tr").forEach((tr) => tr.addEventListener("click", (e) => { if (e.target.tagName !== "INPUT") openDrawer(tr.dataset.slug); }));
+  $("#rows").querySelectorAll(".you input").forEach((inp) => {
+    inp.addEventListener("change", () => saveOverride(inp.id.slice(4), inp.value === "" ? null : Number(inp.value), undefined));
+    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") inp.blur(); });
+  });
+}
+
+function evList(items) {
+  if (!items?.length) return "";
+  return `<ul class="ev">${items.map((e) => `<li><span class="tag ${e.tag === "verified" ? "verified" : "claimed"}">${esc(e.tag)}</span><span>${esc(e.text)}${e.where ? `<span class="where">${esc(e.where)}</span>` : ""}</span></li>`).join("")}</ul>`;
+}
+
+function openDrawer(slug) {
+  st.sel = slug;
+  const r = DATA.rows.find((x) => x.slug === slug); if (!r) return;
+  const s = r.score, run = r.run, o = overrides[slug] || {};
+  const status = run?.status || "Not run";
+  const scan = run?.scan;
+  $("#drawer").innerHTML = `
+    <div class="dh"><div><h2>${esc(r.name)}</h2><small>${esc(r.email)} · ${esc(r.slug)}</small></div><button class="x" id="close" aria-label="Close detail">Close</button></div>
+    <div class="db">
+      <section class="override" aria-label="Your score">
+        <h3 style="margin:0">Your score</h3>
+        <div class="row"><label for="ov-score">Score /100</label><input type="number" id="ov-score" min="0" max="100" value="${o.score ?? ""}" ${canWrite && db ? "" : "disabled"}>
+          <span class="note">AI score: <b>${s ? s.total : "pending"}</b></span></div>
+        <label for="ov-note" class="note">Notes for the panel</label>
+        <textarea id="ov-note" ${canWrite && db ? "" : "disabled"} placeholder="What you checked, why you agree or disagree with the AI score">${esc(o.note || "")}</textarea>
+        <div class="row"><button class="btn" id="ov-save" ${canWrite && db ? "" : "disabled"}>Save</button>${o.score != null || o.note ? `<button class="btn ghost" id="ov-clear">Clear mine</button>` : ""}
+          <span class="note">${o.at ? `Last saved ${esc(new Date(o.at).toLocaleString())}` : db ? "" : ""}</span></div>
+      </section>
+
+      <section><h3>Submission</h3><dl class="kv">
+        ${s ? `<dt>Eval</dt><dd><b>${esc(s.title)}</b></dd><dt>Domain</dt><dd>${esc(s.domain)}</dd><dt>Summary</dt><dd>${esc(s.one_line)}</dd><dt>Tasks</dt><dd>${esc(s.n_tasks)}</dd><dt>Models</dt><dd>${esc((s.models_tested || []).join(", "))}</dd>` : ""}
+        <dt>File</dt><dd>${esc(r.file)}</dd><dt>Submitted</dt><dd>${esc(r.submitted)}${r.late ? " (late email, accepted)" : ""}</dd>
+        <dt>Video</dt><dd>${r.video.map((v) => `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(v)}</a>`).join("<br>") || "none"}</dd>
+        ${r.other_urls.length ? `<dt>Links</dt><dd>${r.other_urls.map((v) => `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(v)}</a>`).join("<br>")}</dd>` : ""}
+        ${r.notes ? `<dt>Notes</dt><dd>${esc(r.notes)}</dd>` : ""}
+      </dl></section>
+
+      ${s ? `<section><h3>Rubric · ${s.total}/100 · confidence ${esc(s.confidence)}</h3><div style="display:grid;gap:8px">
+        ${CRIT.map(([k, label, max]) => { const c = s.scores[k] || {}; return `<div class="crit"><header><b>${label}</b><span class="pts">${c.score ?? "–"}/${max}</span></header>
+          <div class="meter"><span style="width:${Math.round(100 * (c.score || 0) / max)}%"></span></div><p>${esc(c.why)}</p>${evList(c.evidence)}</div>`; }).join("")}
+      </div></section>
+      <section><h3>Strengths</h3><ul class="plain">${(s.strengths || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></section>
+      <section><h3>Weaknesses</h3><ul class="plain">${(s.weaknesses || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></section>
+      ${s.flags?.length ? `<section><h3>Flags</h3><ul class="plain">${s.flags.map((x) => `<li class="flag">${esc(x)}</li>`).join("")}</ul></section>` : ""}`
+      : `<section><h3>Rubric</h3><p class="pending">Not scored yet.</p></section>`}
+
+      <section><h3>Sandbox run · <span class="pill s-${STATUS[status]}">${status}</span></h3>
+        ${run ? `<p style="margin:0 0 8px;font-size:13px">${esc(run.what)}</p>
+        <dl class="kv" style="margin-bottom:10px"><dt>README</dt><dd>${esc(run.readme || "none found")}</dd><dt>Install</dt><dd>Python: ${esc(run.install.python)}${run.install.failed_reqs?.length ? ` (no wheel: ${esc(run.install.failed_reqs.join(", "))})` : ""} · Node: ${esc(run.install.node)} · ${fmtSecs(run.install_secs)}</dd><dt>Run time</dt><dd>${fmtSecs(run.secs)} (offline, 1 CPU, 2 GB)</dd></dl>
+        <div style="display:grid;gap:6px">${run.commands.map((c) => `<details class="cmd"><summary><span class="rc ${c.rc === 0 ? "ok" : c.rc == null ? "none" : "bad"}">${c.rc == null ? "skipped" : c.timed_out ? "timeout" : "exit " + c.rc}</span><code>${esc(c.cmd)}</code><span class="note">${c.secs != null ? fmtSecs(c.secs) : ""}</span></summary><pre>${esc(c.skipped || c.out || "(no output)")}</pre></details>`).join("") || `<p class="note">No runnable command was found in the README.</p>`}</div>`
+        : `<p class="pending">Waiting for the sandbox run.</p>`}
+      </section>
+
+      ${scan && (scan.danger.length || scan.secrets.length || scan.env_files.length) ? `<section><h3>Safety scan (static, before running)</h3><ul class="plain">
+        ${scan.secrets.map((x) => `<li>Possible ${esc(x.kind)} in <code>${esc(x.file)}</code> (${esc(x.preview)})</li>`).join("")}
+        ${scan.env_files.map((x) => `<li>Environment file committed: <code>${esc(x)}</code></li>`).join("")}
+        ${scan.danger.map((x) => `<li>${esc(x.why)} in <code>${esc(x.file)}</code></li>`).join("")}
+      </ul><p class="note">Pattern matches only. Many are test fixtures or model transcripts; the scorer judged them in context.</p></section>` : ""}
+    </div>`;
+  const d = $("#drawer"); d.classList.add("open"); d.setAttribute("aria-hidden", "false");
+  $("#close").onclick = closeDrawer;
+  const save = $("#ov-save"); if (save) save.onclick = () => {
+    const v = $("#ov-score").value; saveOverride(slug, v === "" ? null : Number(v), $("#ov-note").value);
+  };
+  const clr = $("#ov-clear"); if (clr) clr.onclick = () => clearOverride(slug);
+  renderRows();
+}
+function closeDrawer() { st.sel = null; const d = $("#drawer"); d.classList.remove("open"); d.setAttribute("aria-hidden", "true"); renderRows(); }
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && st.sel) closeDrawer(); });
+
+async function saveOverride(slug, score, note) {
+  if (!db) { toast("Scores cannot be saved on this page."); return; }
+  if (score != null && (!Number.isFinite(score) || score < 0 || score > 100)) { toast("Use a whole number from 0 to 100."); return; }
+  const cur = overrides[slug] || {};
+  const body = { score: score == null ? null : Math.round(score), note: note === undefined ? (cur.note || "") : note, at: new Date().toISOString() };
+  if (body.score === (cur.score ?? null) && body.note === (cur.note || "")) return;
+  try { await db.doc(`overrides/${slug}`).set(KEY ? await encryptJson(body) : body); if (KEY) { overrides[slug] = body; render(); } toast("Saved"); }
+  catch (e) {
+    if (e?.code === "invalid_argument") { canWrite = false; render(); toast("You can view this board but not change scores."); }
+    else toast("Could not save. Try again in a moment.");
+  }
+}
+async function clearOverride(slug) {
+  if (!db) return;
+  try { await db.doc(`overrides/${slug}`).delete(); toast("Cleared"); } catch (e) { toast("Could not clear. Try again."); }
+}
+
+function render() {
+  $("#sub").innerHTML = `${esc(DATA.hdm)} · data updated ${esc(DATA.updated)} · <button id="copycsv">Download CSV</button>`;
+  $("#copycsv").onclick = () => offerCsv(ranked(), "HDM1_results.csv");
+  renderTop10();
+  renderTiles(); renderChips(); renderRows();
+  if (st.sel) { const keep = st.sel; const scroll = $("#drawer").scrollTop; openDrawer(keep); $("#drawer").scrollTop = scroll; }
+}
+
+function csvText(rows) {
+  const q = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const head = ["rank", "name", "email", "status", "ai_total", ...CRIT.map((c) => c[0]), "your_score", "your_note", "title", "domain", "video", "flags"];
+  return [head.join(",")].concat(rows.map((r, i) => [r._rank ?? i + 1, r.name, r.email, r.run?.status || "Not run", ai(r),
+    ...CRIT.map(([k]) => r.score?.scores?.[k]?.score), you(r), overrides[r.slug]?.note, r.score?.title, r.score?.domain,
+    (r.video || []).join(" | "), (r.score?.flags || []).join(" | ")].map(q).join(","))).join("\n");
+}
+async function saveFile(filename, data) {
+  const url = URL.createObjectURL(data instanceof Blob ? data : new Blob([data]));
+  const a = document.createElement("a"); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  toast("Download started");
+  return true;
+}
+async function offerCsv(rows, filename) {
+  const text = csvText(rows);
+  if (await saveFile(filename, new Blob([text], { type: "text/csv" }))) return;
+  navigator.clipboard.writeText(text).then(() => toast("Downloads aren't available here, so the CSV was copied to the clipboard"),
+    () => toast("Downloads and copying are both blocked in this view."));
+}
+function renderTop10() {
+  const box = $("#top10"), t = DATA.top10;
+  if (!t?.length) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  const mb = (b) => (b / 1048576).toFixed(b < 10485760 ? 1 : 0) + " MB";
+  box.innerHTML = `<header><h2>Top 10 that ran clean${t.length > 10 ? ` (${t.length} with ties)` : ""}</h2>
+      <button class="dl" id="top10csv">Download top 10 CSV</button></header>
+    <p class="note" style="margin:0">Highest AI scores among submissions whose README commands all exited 0 in the offline sandbox${t.length > 10 ? " (tied places share a rank)" : ""}.${t.some((x) => x.parts?.length) ? " Downloads are the original ZIPs the candidates submitted." : ""}</p>
+    <ol>${t.map((x) => `<li><span class="score">${x.rank}</span><span><b>${esc(x.name)}</b><span class="t">${esc(x.title)}</span></span>
+      <span class="score">${x.score}</span>${x.parts?.length ? `<button class="dl" data-zip="${esc(x.slug)}">ZIP · ${mb(x.bytes)}</button>` : "<span></span>"}</li>`).join("")}</ol>`;
+  $("#top10csv").onclick = () => offerCsv(t.map((x) => DATA.rows.find((r) => r.slug === x.slug)).filter(Boolean), "HDM1_top10_ran_clean.csv");
+  box.querySelectorAll("[data-zip]").forEach((b) => b.onclick = () => downloadZip(b));
+}
+async function downloadZip(btn) {
+  const x = DATA.top10.find((t) => t.slug === btn.dataset.zip); if (!x) return;
+  const label = btn.textContent; btn.disabled = true;
+  try {
+    const chunks = [];
+    for (let i = 0; i < x.parts.length; i++) {
+      btn.textContent = `Preparing ${i + 1}/${x.parts.length}…`;
+      const buf = await fetchEnc(x.parts[i]);
+      chunks.push(KEY ? await decryptBytes(buf) : buf);
+    }
+    const blob = new Blob(chunks, { type: "application/zip" });
+    if (!(await saveFile(x.filename, blob))) toast("Downloads aren't available in this view.");
+  } catch (e) { toast("Could not prepare that ZIP. Reload and try again."); }
+  finally { btn.disabled = false; btn.textContent = label; }
+}
+
+document.querySelectorAll("th.sortable").forEach((th) => th.onclick = () => {
+  const k = th.dataset.sort; if (st.sort === k) st.dir *= -1; else { st.sort = k; st.dir = k === "name" ? 1 : -1; } renderRows();
+});
+$("#q").addEventListener("input", (e) => { st.q = e.target.value; renderRows(); });
+
+// --- encryption: data/results.bin is AES-256-GCM (iv|ciphertext|tag) under a PBKDF2 key from the password ---
+let KEY = null;
+const b64 = (u8) => { let s = ""; for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode(...u8.subarray(i, i + 8192)); return btoa(s); };
+const unb64 = (s) => { const bin = atob(s), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; };
+async function deriveKey(pw, lock) {
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt: unb64(lock.salt), iterations: lock.iter },
+    base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+async function fetchEnc(url) {  // encrypted files are served as base64 text
+  return unb64((await (await fetch(url, { cache: "no-store" })).text()).trim()).buffer;
+}
+async function decryptBytes(buf, key = KEY) {
+  const u = new Uint8Array(buf);
+  return crypto.subtle.decrypt({ name: "AES-GCM", iv: u.slice(0, 12) }, key, u.slice(12));
+}
+async function encryptJson(obj) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, KEY, new TextEncoder().encode(JSON.stringify(obj))));
+  const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12);
+  return { enc: b64(out) };
+}
+async function decryptDoc(d) {
+  if (d && typeof d.enc === "string" && KEY) {
+    try { return JSON.parse(new TextDecoder().decode(await decryptBytes(unb64(d.enc).buffer))); } catch (_) { return null; }
+  }
+  return d && typeof d.enc === "string" ? null : d;
+}
+let dataReady;
+const dataLoaded = new Promise((res) => dataReady = res);
+async function loadData() {
+  try {  // plain data: the local kit (python hdm.py serve)
+    const r = await fetch("data/results.json", { cache: "no-store" });
+    if (r.ok && (r.headers.get("content-type") || "").includes("json")) { DATA = await r.json(); render(); dataReady(); return; }
+  } catch (_) {}
+  let lock;
+  try { const r = await fetch("data/lock.json", { cache: "no-store" }); if (!r.ok) throw 0; lock = await r.json(); }
+  catch (_) { $("#sub").textContent = "The results file could not be loaded. Reload the page to try again."; return; }
+  $("#app").classList.add("hidden"); $("#gate").classList.remove("hidden"); $("#pw").focus();
+  $("#gate").onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = $("#unlock"); btn.disabled = true; btn.textContent = "Opening…"; $("#gateerr").textContent = "";
+    try {
+      const key = await deriveKey($("#pw").value, lock);
+      const buf = await fetchEnc("data/results.txt");
+      const plain = await decryptBytes(buf, key);
+      KEY = key; DATA = JSON.parse(new TextDecoder().decode(plain));
+      $("#gate").classList.add("hidden"); $("#app").classList.remove("hidden"); $("#pw").value = "";
+      render(); dataReady();
+    } catch (_) { $("#gateerr").textContent = "That password didn't work. Check it and try again."; }
+    finally { btn.disabled = false; btn.textContent = "Open board"; }
+  };
+}
+loadData();
+
+// Local kit mode: `python hdm.py serve` exposes api/overrides; same calls as the hosted store.
+async function tryLocalStore() {
+  try {
+    const r = await fetch("api/overrides", { cache: "no-store" });
+    if (!r.ok || !(r.headers.get("content-type") || "").includes("json")) return false;
+    overrides = await r.json();
+    const post = (b) => fetch("api/overrides", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(b) })
+      .then((x) => { if (!x.ok) throw new Error("save failed"); });
+    db = { doc: (path) => { const slug = path.split("/")[1]; return {
+      set: async (body) => { await post({ slug, ...body }); overrides[slug] = body; render(); },
+      delete: async () => { await post({ slug, delete: true }); delete overrides[slug]; render(); } }; } };
+    $("#dbnote").textContent = "Your scores and notes are saved on this computer (workspace/overrides.json).";
+    render();
+    return true;
+  } catch (_) { return false; }
+}
+
+(async () => {
+  if (location.protocol === "http:" && await tryLocalStore()) return;
+  if (typeof claude === "undefined") return;  // static hosting
+  try {
+    if (typeof claude === "undefined") { $("#dbnote").textContent = "Scores can't be saved in this view."; return; }
+    db = await claude.use("db");
+    const user = await claude.use("user");
+    if (user) { try { const c = await user.can("data.write"); if (c === false) canWrite = false; } catch (_) {} }
+    if (!db) { $("#dbnote").textContent = ""; render(); return; }
+    const timer = setTimeout(() => { $("#dbnote").textContent = "Saved scores can't be reached yet; they will appear when the connection returns."; }, 10000);
+    await dataLoaded;  // the decryption key is known only after the password is entered
+    db.collection("overrides").onSnapshot(async (snap) => {
+      if (!snap.metadata.fromCache) clearTimeout(timer);
+      const next = {};
+      for (const d of snap.docs) { if (!d.exists) continue; const v = await decryptDoc(d.data()); if (v) next[d.id] = v; }
+      overrides = next; render();
+    }, () => { clearTimeout(timer); $("#dbnote").textContent = "Saved scores are unavailable right now."; });
+    render();
+  } catch (_) { db = null; }
+})();
+</script>
+</body>
+</html>
