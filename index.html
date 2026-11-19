@@ -49,7 +49,7 @@ h1 { font-size: 22px; font-weight: 600; margin: 0; text-wrap: balance; }
 .tile b { display: block; font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .tile span { color: var(--muted); font-size: 12px; }
 .tile.ok { border-left-color: var(--ok); } .tile.key { border-left-color: var(--key); }
-.tile.bad { border-left-color: var(--bad); } .tile.none { border-left-color: var(--none); } .tile.acc { border-left-color: var(--accent); }
+.tile.bad { border-left-color: var(--bad); } .tile.warn { border-left-color: var(--warn); } .tile.none { border-left-color: var(--none); } .tile.acc { border-left-color: var(--accent); }
 .tile[aria-pressed="true"] { background: var(--accent-soft); }
 .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .bar input[type=search] { flex: 1 1 220px; min-width: 0; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
@@ -70,7 +70,7 @@ tbody tr.sel { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--a
 .pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; white-space: nowrap; }
 .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .s-ok { color: var(--ok); background: var(--ok-soft); } .s-key { color: var(--key); background: var(--key-soft); }
-.s-bad { color: var(--bad); background: var(--bad-soft); } .s-none { color: var(--none); background: var(--none-soft); }
+.s-bad { color: var(--bad); background: var(--bad-soft); } .s-warn { color: var(--warn); background: var(--warn-soft); } .s-none { color: var(--none); background: var(--none-soft); }
 .what { color: var(--muted); font-size: 13px; max-width: 360px; }
 .score { font-family: var(--mono); font-weight: 500; font-size: 15px; }
 .mini { display: flex; gap: 2px; margin-top: 4px; justify-content: flex-end; }
@@ -196,7 +196,7 @@ const CRIT = [
   ["relevance", "Real-world relevance", 15], ["task_design", "Task design", 20], ["grader", "Grader reliability", 20],
   ["limitations", "Evidence of model limitations", 15], ["reproducibility", "Reproducibility", 15],
   ["human_expertise", "Human expertise and review", 10], ["insight", "Insight / hot take", 5]];
-const STATUS = { "Ran clean": "ok", "Needs key": "key", "Problem": "bad", "Not run": "none" };
+const STATUS = { "Ran clean": "ok", "Needs key": "key", "Sandbox limit": "warn", "Failed": "bad", "Problem": "bad", "Not run": "none" };
 let DATA = { rows: [] }, overrides = {}, db = null, canWrite = true;
 const st = { q: "", status: "All", scored: "All", sort: "ai", dir: -1, sel: null };
 const $ = (s) => document.querySelector(s);
@@ -239,7 +239,8 @@ function renderTiles() {
   const yours = rows.filter((r) => you(r) != null).length;
   const tiles = [
     ["All", rows.length, "Submissions", "acc"], ["Ran clean", c("Ran clean"), "Ran clean", "ok"],
-    ["Needs key", c("Needs key"), "Needs a key or internet", "key"], ["Problem", c("Problem"), "Problem", "bad"],
+    ["Needs key", c("Needs key"), "Needs a key or internet", "key"],
+    ["Sandbox limit", c("Sandbox limit"), "Needs tools we don't provide", "warn"], ["Failed", c("Failed") + c("Problem"), "Failed", "bad"],
     ["Not run", c("Not run"), "No runnable command", "none"], ["Scored", scored.length, "AI scored", "acc"],
     [null, top, "Top AI score", "acc"], [null, yours, "Scored by you", "acc"]];
   $("#tiles").innerHTML = tiles.map(([f, n, l, cls]) =>
@@ -252,7 +253,7 @@ function renderTiles() {
 }
 
 function renderChips() {
-  const opts = ["All", "Ran clean", "Needs key", "Problem", "Not run"];
+  const opts = ["All", "Ran clean", "Needs key", "Sandbox limit", "Failed", "Not run"];
   $("#chips").innerHTML = opts.map((o) => `<button class="chip" data-s="${o}" aria-pressed="${st.status === o}">${o}</button>`).join("") +
     ["Scored", "Not scored"].map((o) => `<button class="chip" data-sc="${o}" aria-pressed="${st.scored === o}">${o}</button>`).join("");
   $("#chips").querySelectorAll("[data-s]").forEach((b) => b.onclick = () => { st.status = b.dataset.s; render(); });
